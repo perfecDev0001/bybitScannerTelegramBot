@@ -10,6 +10,7 @@ import logging
 from datetime import datetime
 from flask import Flask, jsonify
 from scanner import BybitScanner
+from telegram_ui import initialize_telegram_ui, start_telegram_ui, stop_telegram_ui
 from config import config
 
 # Configure logging
@@ -25,6 +26,7 @@ app = Flask(__name__)
 # Global scanner instance
 scanner = None
 scanner_thread = None
+telegram_ui_thread = None
 scanner_status = {
     'status': 'starting',
     'start_time': datetime.now(),
@@ -52,6 +54,60 @@ def run_scanner():
         logger.error(f"Scanner error: {e}")
         scanner_status['status'] = 'error'
         scanner_status['error'] = str(e)
+
+def run_telegram_ui():
+    """Run the Telegram UI in a separate thread"""
+    global scanner
+    
+    try:
+        logger.info("Starting Telegram UI thread...")
+        
+        # Set up event loop for this thread
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Create Telegram UI
+        from telegram_ui import TelegramUI
+        from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+        
+        telegram_ui = TelegramUI(scanner)
+        
+        # Build application
+        application = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
+        
+        # Add handlers
+        application.add_handler(CommandHandler("start", telegram_ui.cmd_start))
+        application.add_handler(CallbackQueryHandler(telegram_ui.handle_callback))
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, telegram_ui.handle_message))
+        
+        # Set the application in telegram_ui
+        telegram_ui.application = application
+        
+        logger.info("Starting Telegram bot with manual polling...")
+        
+        # Use manual polling approach that works in threads
+        async def run_bot():
+            await application.initialize()
+            await application.start()
+            await application.updater.start_polling()
+            
+            # Keep running
+            try:
+                while True:
+                    await asyncio.sleep(1)
+            except KeyboardInterrupt:
+                logger.info("Telegram UI stopped")
+            finally:
+                await application.updater.stop()
+                await application.stop()
+                await application.shutdown()
+        
+        # Run the bot
+        loop.run_until_complete(run_bot())
+        
+    except Exception as e:
+        logger.error(f"Telegram UI error: {e}")
 
 @app.route('/')
 def home():
@@ -232,6 +288,85 @@ def restart_scanner():
             'message': f'Failed to restart scanner: {str(e)}'
         }), 500
 
+@app.route('/api/symbols')
+def api_symbols():
+    """API endpoint to get tracked symbols"""
+    global scanner
+    
+    try:
+        if scanner and hasattr(scanner, 'previous_data'):
+            symbols_data = []
+            for symbol, data in scanner.previous_data.items():
+                symbols_data.append({
+                    'symbol': symbol,
+                    'last_price': data.get('lastPrice', 0),
+                    'volume_24h': data.get('volume24h', 0),
+                    'price_change_24h': data.get('price24hPcnt', 0)
+                })
+            
+            return jsonify({
+                'status': 'success',
+                'count': len(symbols_data),
+                'symbols': symbols_data[:50]  # Limit to 50 for performance
+            })
+        else:
+            return jsonify({
+                'status': 'success',
+                'count': 0,
+                'symbols': []
+            })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/alerts')
+def api_alerts():
+    """API endpoint to get recent alerts"""
+    global scanner
+    
+    try:
+        # In a real implementation, you'd store alerts in a database
+        # For now, return basic alert statistics
+        alerts_data = {
+            'total_alerts': scanner.alerts_sent if scanner else 0,
+            'last_24h': 0,  # Would be calculated from stored alerts
+            'recent_alerts': []  # Would be fetched from database
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'data': alerts_data
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/telegram-status')
+def api_telegram_status():
+    """API endpoint to check Telegram UI status"""
+    global telegram_ui_thread
+    
+    try:
+        telegram_status = {
+            'ui_thread_active': telegram_ui_thread.is_alive() if telegram_ui_thread else False,
+            'bot_configured': bool(config.TELEGRAM_BOT_TOKEN),
+            'chat_configured': bool(config.TELEGRAM_CHAT_ID and config.TELEGRAM_CHAT_ID != 'YOUR_CHAT_ID_HERE')
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'telegram': telegram_status
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 def start_scanner():
     """Start the scanner in a background thread"""
     global scanner_thread
@@ -240,9 +375,20 @@ def start_scanner():
     scanner_thread = threading.Thread(target=run_scanner, daemon=True)
     scanner_thread.start()
 
+def start_telegram_ui_thread():
+    """Start the Telegram UI in a background thread"""
+    global telegram_ui_thread
+    
+    logger.info("Starting Telegram UI thread...")
+    telegram_ui_thread = threading.Thread(target=run_telegram_ui, daemon=True)
+    telegram_ui_thread.start()
+
 if __name__ == '__main__':
     # Start the scanner
     start_scanner()
+    
+    # Start the Telegram UI
+    start_telegram_ui_thread()
     
     # Run Flask app
     app.run(

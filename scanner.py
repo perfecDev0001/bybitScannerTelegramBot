@@ -416,6 +416,16 @@ class BybitScanner:
                         self.alerts_sent += 1
                         logger.info(f"Alert sent for {alert['symbol']}: {alert['type']}")
                     
+                    # Also send to Telegram UI users if available
+                    try:
+                        from telegram_ui import telegram_ui
+                        if telegram_ui:
+                            await telegram_ui.send_alert_to_ui_users(message)
+                    except ImportError:
+                        pass  # Telegram UI not available
+                    except Exception as ui_error:
+                        logger.error(f"Error sending alert to UI users: {ui_error}")
+                    
                     # Rate limit Telegram messages
                     await asyncio.sleep(1)
                     

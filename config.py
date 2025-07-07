@@ -43,6 +43,7 @@ class Config:
     # Render/Production Configuration
     PORT = int(os.getenv('PORT', '8080'))
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+    SERVER_URL = os.getenv('SERVER_URL', f'http://localhost:{int(os.getenv("PORT", "8080"))}')
     
     # Rate Limiting
     MAX_REQUESTS_PER_MINUTE = int(os.getenv('MAX_REQUESTS_PER_MINUTE', '100'))

@@ -1,9 +1,10 @@
 # Bybit Perpetual Futures Scanner & Telegram Bot
 
-A comprehensive trading scanner that monitors Bybit perpetual futures for volume spikes, price pumps/dumps, breakouts, and liquidity changes, sending real-time alerts via Telegram.
+A comprehensive trading scanner that monitors Bybit perpetual futures for volume spikes, price pumps/dumps, breakouts, and liquidity changes, with a full-featured **Telegram UI** for customer interaction and real-time alerts.
 
 ## 🚀 Features
 
+### 📊 Core Scanning Features
 - **Real-time Scanning**: Monitors all Bybit perpetual futures every minute
 - **Multiple Alert Types**:
   - 📈 Volume spikes (configurable threshold)
@@ -12,8 +13,21 @@ A comprehensive trading scanner that monitors Bybit perpetual futures for volume
   - 📊 Breakout detection (support/resistance levels)
   - 💧 Liquidity drops
 - **Smart Filtering**: Volume, price, and market cap filters
-- **Telegram Integration**: Real-time alerts with formatted messages
-- **Web Dashboard**: Health checks and status monitoring
+
+### 🤖 Telegram UI Features
+- **Interactive Dashboard**: Full control panel accessible via Telegram
+- **Real-time Status**: Live scanner status and performance metrics
+- **Alert Management**: View recent alerts and configure preferences
+- **Symbol Browser**: Browse and search tracked symbols
+- **Settings Control**: Adjust thresholds and filters on-the-fly
+- **Scanner Controls**: Start, stop, restart scanner remotely
+- **Performance Metrics**: Detailed statistics and uptime monitoring
+- **Multi-user Support**: Secure access for authorized users
+
+### 🌐 Web Server Features
+- **Health Checks**: API endpoints for monitoring
+- **Status Dashboard**: Web-based status information
+- **API Endpoints**: RESTful API for data access
 - **Render Ready**: Configured for easy cloud deployment
 
 ## 📋 Requirements
@@ -87,21 +101,46 @@ This will test:
 
 ## 🚀 Running Locally
 
-### Option 1: Direct Scanner (Console Output)
+### Option 1: Full Application (Recommended)
+```bash
+python app.py
+```
+This starts:
+- 📊 Scanner in background thread
+- 🤖 Telegram UI bot
+- 🌐 Web server for health checks
+
+### Option 2: Telegram UI Only (Testing)
+```bash
+python run_telegram_ui.py
+```
+
+### Option 3: Direct Scanner (Console Output)
 ```bash
 python scanner.py
 ```
 
-### Option 2: Web Server + Scanner (Recommended)
-```bash
-python app.py
-```
-
-Then visit:
+### Web Endpoints
+Visit these URLs when running the full application:
 - `http://localhost:8080/` - Main status
 - `http://localhost:8080/health` - Health check
 - `http://localhost:8080/status` - Detailed status
 - `http://localhost:8080/test-telegram` - Test Telegram bot
+- `http://localhost:8080/api/symbols` - Get tracked symbols
+- `http://localhost:8080/api/alerts` - Get alert statistics
+- `http://localhost:8080/api/telegram-status` - Telegram UI status
+
+### Telegram Commands
+Once the bot is running, use these commands in Telegram:
+- `/start` - Welcome message and quick start
+- `/dashboard` - Main control panel
+- `/status` - Scanner status and health
+- `/alerts` - View recent alerts
+- `/symbols` - Browse tracked symbols
+- `/settings` - Configure preferences
+- `/performance` - Performance metrics
+- `/control` - Scanner controls
+- `/help` - Help and commands list
 
 ## 🌐 Deployment to Render
 
@@ -180,6 +219,53 @@ All necessary files are included:
 ⏰ Time: 2024-01-15 14:30:25 UTC
 ```
 
+## 🤖 Telegram UI Guide
+
+### Getting Started with Telegram UI
+
+1. **Start the bot**: Send `/start` to your bot
+2. **Access Dashboard**: Use `/dashboard` or click the 📊 Dashboard button
+3. **Monitor Status**: Use `/status` to check scanner health
+4. **View Alerts**: Use `/alerts` to see recent notifications
+5. **Browse Symbols**: Use `/symbols` to see tracked markets
+6. **Adjust Settings**: Use `/settings` to configure thresholds
+7. **Control Scanner**: Use `/control` for start/stop/restart operations
+
+### Dashboard Features
+
+The main dashboard (`/dashboard`) provides:
+- **Scanner Status**: Current operational status
+- **Uptime**: How long the scanner has been running
+- **Alert Count**: Total alerts sent
+- **Symbol Count**: Number of symbols being tracked
+- **Configuration**: Current threshold settings
+- **Quick Actions**: Buttons for common operations
+
+### Interactive Controls
+
+All Telegram UI interactions use inline keyboards for easy navigation:
+- 🔄 **Refresh buttons**: Get latest data
+- 📊 **Navigation buttons**: Move between sections
+- ⚙️ **Settings buttons**: Adjust configurations
+- 🎮 **Control buttons**: Manage scanner operations
+
+### Real-time Data
+
+The Telegram UI loads all data from the web server in real-time:
+- Scanner status and health
+- Performance metrics
+- Tracked symbols list
+- Alert statistics
+- Configuration settings
+
+### Multi-User Support
+
+The Telegram UI supports multiple users:
+- Each user gets their own session
+- Authorized users can control the scanner
+- All users receive alerts when conditions are met
+- User preferences can be customized individually
+
 ## ⚙️ Configuration Options
 
 ### Alert Thresholds
@@ -205,9 +291,44 @@ All necessary files are included:
 - `GET /health` - Health check (for monitoring)
 - `GET /status` - Detailed status information
 
+### Data Access
+- `GET /api/symbols` - Get tracked symbols with current data
+- `GET /api/alerts` - Get alert statistics and recent alerts
+- `GET /api/telegram-status` - Get Telegram UI bot status
+
 ### Testing & Control
 - `GET /test-telegram` - Test Telegram bot connectivity
 - `GET /restart-scanner` - Restart the scanner (debugging)
+
+### Example API Responses
+
+#### `/api/symbols`
+```json
+{
+  "status": "success",
+  "count": 25,
+  "symbols": [
+    {
+      "symbol": "BTCUSDT",
+      "last_price": "43250.50",
+      "volume_24h": "2500000000",
+      "price_change_24h": "2.45"
+    }
+  ]
+}
+```
+
+#### `/api/telegram-status`
+```json
+{
+  "status": "success",
+  "telegram": {
+    "ui_thread_active": true,
+    "bot_configured": true,
+    "chat_configured": true
+  }
+}
+```
 
 ## 📝 Logs & Monitoring
 
